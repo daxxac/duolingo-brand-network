@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duolingo Brand Network</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        #network {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .node {
+            font-family: 'Nunito', sans-serif;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .node-logo {
+            fill: white;
+            stroke: #58cc02;
+            stroke-width: 3px;
+        }
+
+        .node-category {
+            fill: white;
+            stroke: #58cc02;
+            stroke-width: 2px;
+        }
+
+        .node-association {
+            fill: #f7f7f7;
+            stroke: #ddd;
+            stroke-width: 1px;
+        }
+
+        .text-logo {
+            fill: #58cc02;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .text-category {
+            fill: #58cc02;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .text-association {
+            fill: #333;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .link-primary {
+            stroke: #58cc02;
+            stroke-width: 2;
+            opacity: 0.6;
+        }
+
+        .link-secondary {
+            stroke: #ddd;
+            stroke-width: 1;
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body>
+<div id="network"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+    const categoryDefs = [
+        { id: 'product-attributes', label: 'Product Attributes' },
+        { id: 'products', label: 'Products' },
+        { id: 'values', label: 'Values' },
+        { id: 'places', label: 'Places / Occasions' },
+        { id: 'benefits', label: 'Benefits' },
+        { id: 'users', label: 'Users' },
+        { id: 'visuals', label: 'Visuals' }
+    ];
+    const associationsByCategory = {
+        'product-attributes': [
+            'Free app',
+            'Mobile-first design',
+            'Gamification (XP, hearts, streaks)',
+            'Push notifications',
+            'Super Duolingo (premium)',
+            'AI Tutor (Max)',
+            'Duolingo English Test',
+            'Podcasts, Stories',
+            'Many languages (incl. Klingon, Valyrian)',
+            'Chess / Music / Math / ABC',
+            'App interface (minimal, colorful)'
+        ],
+        'products': [
+            'Language courses (40+)',
+            'Duolingo English Test',
+            'Duolingo ABC (kids reading)',
+            'Duolingo Music',
+            'Duolingo Math',
+            'Duolingo Chess',
+            'Podcasts & Stories',
+            'Social media content (memes, TikTok)'
+        ],
+        'values': [
+            'Free education for all',
+            'Inclusivity & diversity',
+            'Global community',
+            'Playful learning',
+            'Consistency & habit',
+            'Innovation with AI',
+            'Fun before perfection'
+        ],
+        'places': [
+            'Daily commute (bus, metro)',
+            'School & university use',
+            'At home (bedtime, routine)',
+            'Social media (TikTok, Twitter)',
+            'Global campaigns (India streets, Japan museum, Brazil collab)',
+            'Exams / study abroad prep (IELTS, TOEFL replacement)',
+            'Travel abroad'
+        ],
+        'benefits': [
+            'Language confidence',
+            'Daily habit',
+            'Fun escape / gamified break',
+            'Accessible anywhere',
+            'Low cost (free/premium choice)',
+            'Community belonging',
+            'Exam success',
+            'Career opportunities'
+        ],
+        'users': [
+            'Students (school, uni)',
+            'Children (ABC users)',
+            'Adults learning new languages',
+            'Immigrants / travelers',
+            'Professionals needing certificates',
+            'Parents (with kids)',
+            'Teachers / schools',
+            'Fans of memes / TikTok culture',
+            'Casual learners & hobbyists'
+        ],
+        'visuals': [
+            'Duo Owl',
+            'Fire streak',
+            'Gems / crowns / badges',
+            'App green color',
+            'Meme images'
+        ]
+    };
+
+    function slugify(text) {
+        return text
+            .toLowerCase()
+            .replace(/[^\w]+/g, '-')
+            .replace(/(^-|-$)/g, '');
+    }
+
+    const data = { nodes: [], links: [] };
+    // Logo
+    data.nodes.push({ id: 'logo', type: 'logo', label: '', group: 0 });
+    // Categories
+    categoryDefs.forEach(cat => {
+        data.nodes.push({ id: cat.id, type: 'category', label: cat.label, group: 1 });
+        data.links.push({ source: 'logo', target: cat.id, type: 'primary' });
+    });
+    // Associations
+    Object.entries(associationsByCategory).forEach(([catId, items]) => {
+        items.forEach(label => {
+            const id = `${catId}-${slugify(label).slice(0, 60)}`;
+            data.nodes.push({ id, type: 'association', label, group: 2, category: catId });
+            data.links.push({ source: catId, target: id, type: 'secondary' });
+        });
+    });
+
+    // A4 size at 96dpi coordinate system
+    const width = 794;   // 210mm * 96dpi / 25.4
+    const height = 1123; // 297mm * 96dpi / 25.4
+
+    // Center point (not used for layout now, kept for reference)
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    const svg = d3.select('#network')
+        .append('svg')
+        .attr('width', '210mm')
+        .attr('height', '297mm')
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+    const simulation = d3.forceSimulation(data.nodes)
+        .force('link', d3.forceLink(data.links).id(d => d.id))
+        .force('charge', d3.forceManyBody().strength(-10))
+        .force('center', d3.forceCenter(width / 2, height / 2));
+
+    const link = svg.append('g')
+        .selectAll('line')
+        .data(data.links)
+        .enter().append('line')
+        .attr('class', d => d.type === 'primary' ? 'link-primary' : 'link-secondary');
+
+    const node = svg.append('g')
+        .selectAll('g')
+        .data(data.nodes)
+        .enter().append('g')
+        .attr('class', 'node');
+
+    // Add text labels first so we can size shapes to fit
+    node.append('text')
+        .text(d => d.label)
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.3em')
+        .attr('class', d => `text-${d.type}`)
+        .style('pointer-events', 'none');
+
+    // Add shapes: circle for logo, pill-shaped rect for others sized to text
+    node.filter(d => d.type === 'logo')
+        .append('circle')
+        .attr('r', 40)
+        .attr('class', 'node-logo');
+
+    // Word-wrap helper for long labels
+    function wrapText(selection, maxWidth) {
+        selection.each(function() {
+            const text = d3.select(this);
+            if (!text.text()) return;
+            // Avoid re-wrapping if tspans already exist
+            if (!text.selectAll('tspan').empty()) return;
+            const words = text.text().split(/\s+/).filter(Boolean);
+            if (words.length <= 1) return; // no need to wrap
+            const dy = parseFloat(text.attr('dy')) || 0;
+            const lineHeight = 1.15; // em units
+            text.text(null);
+            let line = [];
+            let lineNumber = 0;
+            let tspan = text.append('tspan').attr('x', 0).attr('dy', dy + 'em');
+            for (let i = 0; i < words.length; i++) {
+                line.push(words[i]);
+                tspan.text(line.join(' '));
+                if (tspan.node().getComputedTextLength() > maxWidth) {
+                    line.pop();
+                    tspan.text(line.join(' '));
+                    line = [words[i]];
+                    tspan = text.append('tspan')
+                        .attr('x', 0)
+                        .attr('dy', (++lineNumber * lineHeight) + 'em')
+                        .text(words[i]);
+                }
+            }
+        });
+    }
+
+    // For non-logo nodes, measure text (with wrapping) and insert a rounded rect behind it
+    function updateNodeBoxes() {
+        node.filter(d => d.type !== 'logo')
+            .each(function(d) {
+                const group = d3.select(this);
+                const textNode = group.select('text').node();
+                if (!textNode) return;
+                const textSel = group.select('text');
+                const maxWidth = d.type === 'category' ? 200 : 180;
+                // Wrap once if needed
+                if (textSel.selectAll('tspan').empty()) {
+                    wrapText(textSel, maxWidth);
+                }
+                const bbox = textNode.getBBox();
+                const paddingX = d.type === 'category' ? 18 : 14;
+                const paddingY = d.type === 'category' ? 10 : 8;
+                const boxWidth = Math.max(44, Math.ceil(Math.min(maxWidth, bbox.width) + paddingX * 2));
+                const boxHeight = Math.max(26, Math.ceil(bbox.height + paddingY * 2));
+                d.boxWidth = boxWidth;
+                d.boxHeight = boxHeight;
+                d.collisionRadius = Math.sqrt(boxWidth * boxWidth + boxHeight * boxHeight) / 2;
+                let rect = group.select('rect');
+                if (rect.empty()) {
+                    rect = group.insert('rect', 'text');
+                }
+                rect
+                    .attr('x', -boxWidth / 2)
+                    .attr('y', -boxHeight / 2)
+                    .attr('width', boxWidth)
+                    .attr('height', boxHeight)
+                    .attr('rx', boxHeight / 2)
+                    .attr('ry', boxHeight / 2)
+                    .attr('class', `node-${d.type}`);
+            });
+    }
+
+    // Remove manual placement; let simulation arrange nodes naturally
+
+    updateNodeBoxes();
+    // Add only non-overlap collision after boxes measured
+    simulation.force('collision', d3.forceCollide()
+        .radius(d => d.type === 'logo' ? 42 : ((d.collisionRadius || 20) + 3))
+    );
+    simulation.alpha(1).restart();
+
+    // (Optional) If webfonts load later, labels may reflow; keeping default layout
+
+    // Add logo image for center node
+    node.filter(d => d.type === 'logo')
+        .append('image')
+        .attr('href', 'https://design.duolingo.com/7d3b95abf67001cde6ea.svg')
+        .attr('width', 60)
+        .attr('height', 60)
+        .attr('x', -30)
+        .attr('y', -30);
+
+    simulation.on('tick', () => {
+        // Keep all nodes within the A4 viewBox
+        const margin = 6;
+        data.nodes.forEach(d => {
+            const halfW = d.type === 'logo' ? 40 : (d.boxWidth ? d.boxWidth / 2 : (d.type === 'category' ? 25 : 20));
+            const halfH = d.type === 'logo' ? 40 : (d.boxHeight ? d.boxHeight / 2 : (d.type === 'category' ? 16 : 12));
+            d.x = Math.max(halfW + margin, Math.min(width - halfW - margin, d.x));
+            d.y = Math.max(halfH + margin, Math.min(height - halfH - margin, d.y));
+        });
+
+        link
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
+
+        node
+            .attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+    // Let simulation cool naturally without pinning nodes
+</script>
+</body>
+</html>
